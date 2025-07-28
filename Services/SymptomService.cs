@@ -16,6 +16,14 @@ namespace AIDaptCareAPI.Services
         {
             return _symptoms.Find(record => true).ToList();
         }
+        public async Task<List<SymptomRecord>> GetHistoryAsync(string username)
+        {
+            return await _symptoms
+                .Find(r => r.Username == username)
+                .SortByDescending(r => r.Timestamp)
+                .Limit(10)
+                .ToListAsync();
+        }
         public void Create(SymptomRecord record)
         {
             _symptoms.InsertOne(record);

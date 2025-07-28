@@ -37,10 +37,10 @@ builder.Services.AddAuthentication(options =>
 });
 builder.Services.AddAuthorization();
 var app = builder.Build();
-// Enable Swagger only in development
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();  // <--- Required to use attribute-routed controllers like [Route("api/auth")]
+app.MapControllers(); 
 app.Run();
 
 

@@ -44,10 +44,10 @@ namespace AIDaptCareAPI.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
-        [HttpGet("history")]
-        public IActionResult GetHistory()
+        [HttpGet("history/{username}")]
+        public async Task<IActionResult> GetHistory(string username)
         {
-            var records = _symptomService.GetAll();
+            var records = await _symptomService.GetHistoryAsync(username);
             return Ok(records);
         }
         private List<string> GetRemedies(string condition)
