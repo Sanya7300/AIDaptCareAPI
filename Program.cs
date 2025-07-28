@@ -13,6 +13,7 @@ builder.Services.Configure<DatabaseSettings>(
 builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<AuthService>();
 builder.Services.AddSingleton<SymptomService>();
+builder.Services.AddSingleton<ResearchDocumentService>();
 builder.Services.AddHttpClient<IAiPredictionService, AzureAiPredictionService>();
 
 builder.Services.Configure<JwtSettings>(
@@ -51,5 +52,4 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers(); 
 app.Run();
-
 

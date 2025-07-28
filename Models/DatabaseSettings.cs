@@ -6,5 +6,6 @@ namespace AIDaptCareAPI.Models
         public string DatabaseName { get; set; }
         public string UserCollectionName { get; set; }
         public string SymptomCollectionName { get; set; }
+        public string ResearchCollectionName {  get; set; }
     }
 }
