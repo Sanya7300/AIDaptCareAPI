@@ -65,8 +65,24 @@ namespace AIDaptCareAPI.Controllers
             }
         }
 
-        
+        [HttpGet("history/{username}")]
+        public async Task<IActionResult> GetHistory(string username)
+        {
+            var records = await _symptomService.GetHistoryAsync(username);
+            return Ok(records);
+        }
+        private List<string> GetRemedies(string condition)
+        {
+            return condition.ToLower() switch
+            {
+                "diabetes" => new List<string> { "Eat a balanced diet", "Exercise regularly", "Monitor blood sugar" },
+                "hypertension" => new List<string> { "Reduce salt intake", "Regular physical activity", "Limit alcohol" },
+                "kidney disorder" => new List<string> { "Stay hydrated", "Limit protein intake", "Avoid NSAIDs" },
+                _ => new List<string> { "Please consult a medical professional" }
+            };
+        }
     }
+
     public class SymptomInputModel
     {
         public string Username { get; set; }
