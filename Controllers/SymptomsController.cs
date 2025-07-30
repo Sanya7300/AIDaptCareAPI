@@ -22,7 +22,7 @@ namespace AIDaptCareAPI.Controllers
             _aiPredictionService = aiPredictionService;
             _researchDocumentService = researchDocumentService;
         }
-        
+
         [HttpPost("analyze")]
         public async Task<IActionResult> AnalyzeSymptoms([FromBody] SymptomInputModel input)
         {
@@ -80,6 +80,25 @@ namespace AIDaptCareAPI.Controllers
                 "kidney disorder" => new List<string> { "Stay hydrated", "Limit protein intake", "Avoid NSAIDs" },
                 _ => new List<string> { "Please consult a medical professional" }
             };
+        }
+
+        [HttpPost("ask")]
+        public async Task<IActionResult> AskAssistant([FromBody] AssistantInput input)
+        {
+            var prompt = $"""
+   The patient has these symptoms: {string.Join(", ", input.Symptoms)}.
+   Diagnosed condition: {input.Condition}.
+   Now they ask: "{input.Question}"
+   Please answer clearly and briefly like a virtual doctor.
+   """;
+            var response = await _aiPredictionService.GenerateAssistantResponseAsync(prompt);
+            return Ok(new { reply = response });
+        }
+        public class AssistantInput
+        {
+            public List<string> Symptoms { get; set; }
+            public string Condition { get; set; }
+            public string Question { get; set; }
         }
     }
 

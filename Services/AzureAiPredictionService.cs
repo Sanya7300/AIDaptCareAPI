@@ -7,20 +7,58 @@ using Microsoft.Extensions.Configuration;
 using System.Linq;
 using System.Collections.Generic;
 using AIDaptCareAPI.Models;
+using Newtonsoft.Json;
 
 namespace AIDaptCareAPI.Services
 {
     public class AzureAiPredictionService : IAiPredictionService
     {
         private readonly HttpClient _httpClient;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
-        public AzureAiPredictionService(HttpClient httpClient, IConfiguration configuration)
+        public AzureAiPredictionService(HttpClient httpClient, IConfiguration configuration, IHttpClientFactory _httpClientFactory)
         {
             _httpClient = httpClient;
             _configuration = configuration;
+            _httpClientFactory = _httpClientFactory;
         }
 
-        
+        public async Task<string> GenerateAssistantResponseAsync(string prompt)
+        {
+            var endpointBase = _configuration["AzureAI:Endpoint"];
+            var deploymentName = _configuration["AzureAI:Deployment"];
+            var apiKey = _configuration["AzureAI:ApiKey"];
+            var requestUrl = $"{endpointBase}/openai/deployments/{deploymentName}/chat/completions?api-version=2023-05-15";
+            var requestBody = new
+            {
+                messages = new[]
+                {
+           new { role = "system", content = "You are a friendly medical AI assistant." },
+           new { role = "user", content = prompt }
+       },
+                temperature = 0.7,
+                max_tokens = 300
+            };
+
+            var requestJson = JsonConvert.SerializeObject(requestBody);
+            var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
+            {
+                Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
+            };
+            request.Headers.Add("api-key", apiKey);
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var jsonDoc = await response.Content.ReadAsStringAsync();
+            var parsed = JsonDocument.Parse(jsonDoc);
+            var result = parsed.RootElement
+                              .GetProperty("choices")[0]
+                              .GetProperty("message")
+                              .GetProperty("content")
+                              .GetString();
+            return result ?? "Sorry, I couldn’t understand that.";
+        }
+
         public async Task<(string Condition, List<string> Remedies)> PredictConditionAndRemediesAsync(
             List<string> symptoms, List<SymptomRecord> history, List<ResearchDocument> researchDocs)
         {
@@ -65,7 +103,7 @@ namespace AIDaptCareAPI.Services
                     },
                 max_tokens = 500,
             };
-            var requestJson = JsonSerializer.Serialize(requestBody);
+            var requestJson = JsonConvert.SerializeObject(requestBody);
             var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
             {
                 Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
