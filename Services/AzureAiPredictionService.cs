@@ -94,7 +94,7 @@ namespace AIDaptCareAPI.Services
             // ""condition"": ""<ConditionName>"",
             // ""remedies"": [""Remedy1"", ""Remedy2"", ""Remedy3""]
             //}}";
-            var prompt = $@"
+            prompt = $@"
 Given the following symptoms: {string.Join(", ", symptoms)},
 respond with a JSON containing the predicted chronic condition and 3 home remedies.
     Respond strictly in this JSON format:
