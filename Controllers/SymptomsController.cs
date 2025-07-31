@@ -55,6 +55,7 @@ namespace AIDaptCareAPI.Controllers
                 {
                     condition = predictedCondition,
                     remedies = remedies,
+                    history = history,
                     research = researchDocs.Select(d => new { d.Title, d.Content })
                 });
             }
