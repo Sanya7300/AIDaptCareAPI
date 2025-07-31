@@ -88,7 +88,15 @@ namespace AIDaptCareAPI.Services
     Relevant Research:
     {researchText}
 
-    Based on the above, respond with a JSON containing the predicted chronic condition and 3 home remedies.
+            //    Based on the above, respond with a JSON containing the predicted chronic condition and 3 home remedies.
+            //Respond strictly in this JSON format:
+            //{{
+            // ""condition"": ""<ConditionName>"",
+            // ""remedies"": [""Remedy1"", ""Remedy2"", ""Remedy3""]
+            //}}";
+            var prompt = $@"
+Given the following symptoms: {string.Join(", ", symptoms)},
+respond with a JSON containing the predicted chronic condition and 3 home remedies.
     Respond strictly in this JSON format:
     {{
       ""condition"": ""<ConditionName>"",
