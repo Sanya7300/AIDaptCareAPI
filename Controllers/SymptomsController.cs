@@ -11,12 +11,12 @@ namespace AIDaptCareAPI.Controllers
     {
         private readonly SymptomService _symptomService;
         private readonly IAiPredictionService _aiPredictionService;
-        private readonly ResearchDocumentService _researchDocumentService;
+        private readonly IResearchDocumentService _researchDocumentService;
 
         public SymptomController(
             SymptomService symptomService,
             IAiPredictionService aiPredictionService,
-            ResearchDocumentService researchDocumentService)
+            IResearchDocumentService researchDocumentService)
         {
             _symptomService = symptomService;
             _aiPredictionService = aiPredictionService;

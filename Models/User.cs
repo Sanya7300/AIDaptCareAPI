@@ -7,8 +7,6 @@ namespace AIDaptCareAPI.Models
     {
         [BsonId]
         public ObjectId Id { get; set; }
-        [BsonId]
-        public string UserId { get; set; }
         [BsonElement("username")]
         public string Username { get; set; }
         [BsonElement("password")]
