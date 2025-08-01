@@ -35,11 +35,11 @@ namespace AIDaptCareAPI.Controllers
                 var history = await _symptomService.GetHistoryAsync(input.Username);
 
                 // 2. Get relevant research documents
-                var researchDocs = await _researchDocumentService.SearchByTagsAsync(input.Symptoms);
+                //var researchDocs = await _researchDocumentService.SearchByTagsAsync(input.Symptoms);
 
                 // 3. Call RAG-enabled AI prediction service
                 var (predictedCondition, remedies) = await _aiPredictionService
-                    .PredictConditionAndRemediesAsync(input.Symptoms, history, researchDocs);
+                    .PredictConditionAndRemediesAsync(input.Symptoms, history);
 
                 var record = new SymptomRecord
                 {
@@ -56,7 +56,6 @@ namespace AIDaptCareAPI.Controllers
                     condition = predictedCondition,
                     remedies = remedies,
                     history = history,
-                    research = researchDocs.Select(d => new { d.Title, d.Content })
                 });
             }
             catch (Exception ex)

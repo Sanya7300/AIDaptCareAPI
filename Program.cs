@@ -13,9 +13,10 @@ builder.Services.Configure<DatabaseSettings>(
 builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<AuthService>();
 builder.Services.AddSingleton<SymptomService>();
-builder.Services.AddSingleton<ResearchDocumentService>();
+builder.Services.AddScoped<IResearchDocumentService, ResearchDocumentService>();
 builder.Services.AddHttpClient<IAiPredictionService, AzureAiPredictionService>();
-
+builder.Services.AddScoped<IAzureFormRecognizerService, AzureFormRecognizerService>();
+builder.Services.AddSingleton<MongoService>();
 builder.Services.Configure<JwtSettings>(
    builder.Configuration.GetSection("Jwt"));
 builder.Services.AddAuthentication(options =>

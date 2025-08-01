@@ -13,6 +13,7 @@ namespace AIDaptCareAPI.Services
         {
             var claims = new[]
             {
+           new Claim(ClaimTypes.NameIdentifier, user.UserId),
            new Claim(ClaimTypes.Name, user.Username),
            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
        };

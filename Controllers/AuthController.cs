@@ -1,6 +1,7 @@
 using AIDaptCareAPI.Models;
 using AIDaptCareAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+
 namespace AIDaptCareAPI.Controllers
 {
     [Route("api/auth")]
