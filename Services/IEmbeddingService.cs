@@ -4,6 +4,6 @@ namespace AIDaptCareAPI.Services
 {
     public interface IEmbeddingService
     {
-        Task<IReadOnlyList<float>> GetEmbeddingAsync(string text);
+        Task<List<float>> GetEmbeddingAsync(string text);
     }
 }
