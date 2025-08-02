@@ -17,5 +17,7 @@ namespace AIDaptCareAPI.Models
         public List<string>? Remedies { get; set; }
         [BsonElement("timestamp")]
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        [BsonElement("embedding")]
+        public List<float> Embedding { get; set; }
     }
 }

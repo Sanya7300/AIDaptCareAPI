@@ -12,15 +12,18 @@ namespace AIDaptCareAPI.Controllers
         private readonly SymptomService _symptomService;
         private readonly IAiPredictionService _aiPredictionService;
         private readonly IResearchDocumentService _researchDocumentService;
+        private readonly IEmbeddingService _embeddingService;
 
         public SymptomController(
             SymptomService symptomService,
             IAiPredictionService aiPredictionService,
-            IResearchDocumentService researchDocumentService)
+            IResearchDocumentService researchDocumentService,
+            IEmbeddingService embeddingService)
         {
             _symptomService = symptomService;
             _aiPredictionService = aiPredictionService;
             _researchDocumentService = researchDocumentService;
+            _embeddingService = embeddingService;
         }
 
         [HttpPost("analyze")]
@@ -33,6 +36,8 @@ namespace AIDaptCareAPI.Controllers
 
                 // 1. Get medical history
                 var history = await _symptomService.GetHistoryAsync(input.Username);
+                string joinedSypmtoms = string.Join(", ", input.Symptoms);
+                var embedding = await _embeddingService.GetEmbeddingAsync( joinedSypmtoms);
 
                 // 2. Get relevant research documents
                 //var researchDocs = await _researchDocumentService.SearchByTagsAsync(input.Symptoms);
@@ -47,7 +52,8 @@ namespace AIDaptCareAPI.Controllers
                     Symptoms = input.Symptoms,
                     PredictedCondition = predictedCondition,
                     Remedies = remedies,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.UtcNow,
+                    Embedding = embedding
                 };
                 _symptomService.Create(record);
 
