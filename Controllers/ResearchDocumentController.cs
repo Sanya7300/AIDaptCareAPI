@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using AIDaptCareAPI.Services;
 using System.Security.Claims;
-using AIDaptCareAPI.Services;
 
 namespace AIDaptCareAPI.Controllers
 {
