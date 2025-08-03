@@ -12,15 +12,18 @@ namespace AIDaptCareAPI.Controllers
         private readonly SymptomService _symptomService;
         private readonly IAiPredictionService _aiPredictionService;
         private readonly IResearchDocumentService _researchDocumentService;
+        private readonly IEmbeddingService _embeddingService;
 
         public SymptomController(
             SymptomService symptomService,
             IAiPredictionService aiPredictionService,
-            IResearchDocumentService researchDocumentService)
+            IResearchDocumentService researchDocumentService,
+            IEmbeddingService embeddingService)
         {
             _symptomService = symptomService;
             _aiPredictionService = aiPredictionService;
             _researchDocumentService = researchDocumentService;
+            _embeddingService = embeddingService;
         }
 
         [HttpPost("analyze")]

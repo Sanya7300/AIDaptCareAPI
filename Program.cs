@@ -16,6 +16,7 @@ builder.Services.AddSingleton<SymptomService>();
 builder.Services.AddScoped<IResearchDocumentService, ResearchDocumentService>();
 builder.Services.AddHttpClient<IAiPredictionService, AzureAiPredictionService>();
 builder.Services.AddScoped<IAzureFormRecognizerService, AzureFormRecognizerService>();
+builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
 builder.Services.AddSingleton<MongoService>();
 builder.Services.Configure<JwtSettings>(
    builder.Configuration.GetSection("Jwt"));
