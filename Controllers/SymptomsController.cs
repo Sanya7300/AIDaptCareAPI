@@ -30,32 +30,29 @@ namespace AIDaptCareAPI.Controllers
             {
                 if (input.Symptoms == null || !input.Symptoms.Any())
                     return BadRequest("No symptoms provided.");
-
-                // 1. Get medical history
-                var history = await _symptomService.GetHistoryAsync(input.Username);
-
-                // 2. Get relevant research documents
-                //var researchDocs = await _researchDocumentService.SearchByTagsAsync(input.Symptoms);
-
-                // 3. Call RAG-enabled AI prediction service
+                // Generate embedding
+                var joinedSymptoms = string.Join(", ", input.Symptoms);
+                var embedding = await _embeddingService.GetEmbeddingAsync(joinedSymptoms);
+                // Retrieve similar records from DB
+                var similarRecords = await _symptomService.FindSimilarEmbeddingsAsync(embedding, topN: 5);
+                // Use AI prediction with RAG-style context
                 var (predictedCondition, remedies) = await _aiPredictionService
-                    .PredictConditionAndRemediesAsync(input.Symptoms, history);
-
+                    .PredictConditionAndRemediesAsync(input.Symptoms, similarRecords);
                 var record = new SymptomRecord
                 {
                     Username = input.Username,
                     Symptoms = input.Symptoms,
                     PredictedCondition = predictedCondition,
                     Remedies = remedies,
+                    Embedding = embedding,
                     Timestamp = DateTime.UtcNow
                 };
-                _symptomService.Create(record);
-
+                 _symptomService.Create(record);
                 return Ok(new
                 {
                     condition = predictedCondition,
                     remedies = remedies,
-                    history = history,
+                    similar = similarRecords,
                 });
             }
             catch (Exception ex)

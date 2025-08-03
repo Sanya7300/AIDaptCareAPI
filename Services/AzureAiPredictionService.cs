@@ -1,4 +1,4 @@
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Text.Json;
 using AIDaptCareAPI.Services;
 using System.Text;
@@ -56,7 +56,7 @@ namespace AIDaptCareAPI.Services
                               .GetProperty("message")
                               .GetProperty("content")
                               .GetString();
-            return result ?? "Sorry, I couldn�t understand that.";
+            return result ?? "Sorry, I couldn’t understand that.";
         }
 
         public async Task<string> GenerateDiagnosisFromDocumentAsync(string extractedText)
@@ -114,79 +114,114 @@ Medical Report Content:
             //return jsonResponse.choices[0].message.content;
         }
 
-        public async Task<(string Condition, List<string> Remedies)> PredictConditionAndRemediesAsync(
-            List<string> symptoms, List<SymptomRecord> history)
+        //        public async Task<(string Condition, List<string> Remedies)> PredictConditionAndRemediesAsync(
+        //            List<string> symptoms, List<SymptomRecord> history)
+        //        {
+        //            var endpointBase = _configuration["AzureAI:Endpoint"];
+        //            var deploymentName = _configuration["AzureAI:Deployment"];
+        //            var apiKey = _configuration["AzureAI:ApiKey"];
+        //            var requestUrl = $"{endpointBase}/openai/deployments/{deploymentName}/chat/completions?api-version=2023-05-15";
+
+        //    //        // Format history
+        //    //        var historyText = history != null && history.Any()
+        //    //            ? string.Join("\n", history.Select(h =>
+        //    //                $"- Date: {h.Timestamp:yyyy-MM-dd}, Symptoms: {string.Join(", ", h.Symptoms)}, Condition: {h.PredictedCondition}"))
+        //    //            : "No prior medical history.";
+
+        //    //        // Format research docs (use hyperlink if available, else content)
+        //    //        var researchText = researchDocs != null && researchDocs.Any()
+        //    //            ? string.Join("\n", researchDocs.Select(d =>
+        //    //                $"- {d.Title}: {(d.GetType().GetProperty("Content") != null ? d.GetType()?.GetProperty("Content")?.GetValue(d) : d.Content)}"))
+        //    //            : "No relevant research documents found.";
+
+        //    //        var prompt = $@"
+        //    //Given the following:
+        //    //Symptoms: {string.Join(", ", symptoms)}
+        //    //Medical History:
+        //    //{historyText}
+
+        //    //Relevant Research:
+        //    //{researchText}
+
+        //    //        //    Based on the above, respond with a JSON containing the predicted chronic condition and 3 home remedies.
+        //    //        //Respond strictly in this JSON format:
+        //    //        //{{
+        //    //        // ""condition"": ""<ConditionName>"",
+        //    //        // ""remedies"": [""Remedy1"", ""Remedy2"", ""Remedy3""]
+        //    //        //}}";
+
+        //            var prompt = $@"
+        //Given the following symptoms: {string.Join(", ", symptoms)},
+        //respond with a JSON containing the predicted chronic condition and 3 home remedies.
+        //    Respond strictly in this JSON format:
+        //    {{
+        //      ""condition"": ""<ConditionName>"",
+        //      ""remedies"": [""Remedy1"", ""Remedy2"", ""Remedy3""]
+        //    }}";
+
+        //            var requestBody = new
+        //            {
+        //                messages = new[]
+        //                {
+        //                        new { role = "user", content = prompt }
+        //                    },
+        //                max_tokens = 500,
+        //            };
+        //            var requestJson = JsonConvert.SerializeObject(requestBody);
+        //            var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
+        //            {
+        //                Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
+        //            };
+        //            request.Headers.Add("api-key", apiKey);
+        //            var response = await _httpClient.SendAsync(request);
+        //            response.EnsureSuccessStatusCode();
+        //            var responseContent = await response.Content.ReadAsStringAsync();
+        //            var doc = JsonDocument.Parse(responseContent);
+        //            var content = doc.RootElement
+        //                .GetProperty("choices")[0]
+        //                .GetProperty("message")
+        //                .GetProperty("content")
+        //                .GetString();
+        //            var parsed = JsonDocument.Parse(content!);
+        //            var condition = parsed.RootElement.GetProperty("condition").GetString();
+        //            var remediesJson = parsed.RootElement.GetProperty("remedies").EnumerateArray();
+        //            var remedies = remediesJson.Select(r => r.GetString()).Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
+        //            return (condition ?? "Unknown", remedies);
+        //        }
+
+        public async Task<(string PredictedCondition, List<string> Remedies)> PredictConditionAndRemediesAsync(
+          List<string> symptoms,
+          List<SymptomRecord> similarCases)
         {
-            var endpointBase = _configuration["AzureAI:Endpoint"];
-            var deploymentName = _configuration["AzureAI:Deployment"];
-            var apiKey = _configuration["AzureAI:ApiKey"];
-            var requestUrl = $"{endpointBase}/openai/deployments/{deploymentName}/chat/completions?api-version=2023-05-15";
-
-    //        // Format history
-    //        var historyText = history != null && history.Any()
-    //            ? string.Join("\n", history.Select(h =>
-    //                $"- Date: {h.Timestamp:yyyy-MM-dd}, Symptoms: {string.Join(", ", h.Symptoms)}, Condition: {h.PredictedCondition}"))
-    //            : "No prior medical history.";
-
-    //        // Format research docs (use hyperlink if available, else content)
-    //        var researchText = researchDocs != null && researchDocs.Any()
-    //            ? string.Join("\n", researchDocs.Select(d =>
-    //                $"- {d.Title}: {(d.GetType().GetProperty("Content") != null ? d.GetType()?.GetProperty("Content")?.GetValue(d) : d.Content)}"))
-    //            : "No relevant research documents found.";
-
-    //        var prompt = $@"
-    //Given the following:
-    //Symptoms: {string.Join(", ", symptoms)}
-    //Medical History:
-    //{historyText}
-
-    //Relevant Research:
-    //{researchText}
-
-    //        //    Based on the above, respond with a JSON containing the predicted chronic condition and 3 home remedies.
-    //        //Respond strictly in this JSON format:
-    //        //{{
-    //        // ""condition"": ""<ConditionName>"",
-    //        // ""remedies"": [""Remedy1"", ""Remedy2"", ""Remedy3""]
-    //        //}}";
-           
-            var prompt = $@"
-Given the following symptoms: {string.Join(", ", symptoms)},
-respond with a JSON containing the predicted chronic condition and 3 home remedies.
-    Respond strictly in this JSON format:
-    {{
-      ""condition"": ""<ConditionName>"",
-      ""remedies"": [""Remedy1"", ""Remedy2"", ""Remedy3""]
-    }}";
-
-            var requestBody = new
+            var prompt = "The patient has these symptoms: " + string.Join(", ", symptoms) + ".\n";
+            prompt += "Here are similar cases:\n";
+            foreach (var caseItem in similarCases)
             {
-                messages = new[]
+                prompt += $"- Symptoms: {string.Join(", ", caseItem.Symptoms)} → Condition: {caseItem.PredictedCondition}\n";
+            }
+            prompt += "\nBased on the above similar cases and general medical knowledge, ";
+            prompt += "predict the most likely condition and recommend helpful home remedies.";
+            var response = await GenerateAssistantResponseAsync(prompt);
+            // Simple parsing (example)
+            var predictedCondition = "Unknown";
+            var remedies = new List<string>();
+            if (response.ToLower().Contains("condition:"))
+            {
+                var parts = response.Split("condition:", StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1)
                 {
-                        new { role = "user", content = prompt }
-                    },
-                max_tokens = 500,
-            };
-            var requestJson = JsonConvert.SerializeObject(requestBody);
-            var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
+                    predictedCondition = parts[1].Split('\n')[0].Trim();
+                }
+            }
+            if (response.ToLower().Contains("remedies:"))
             {
-                Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
-            };
-            request.Headers.Add("api-key", apiKey);
-            var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var doc = JsonDocument.Parse(responseContent);
-            var content = doc.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString();
-            var parsed = JsonDocument.Parse(content!);
-            var condition = parsed.RootElement.GetProperty("condition").GetString();
-            var remediesJson = parsed.RootElement.GetProperty("remedies").EnumerateArray();
-            var remedies = remediesJson.Select(r => r.GetString()).Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
-            return (condition ?? "Unknown", remedies);
+                var remedySection = response.Split("remedies:", StringSplitOptions.RemoveEmptyEntries).Last();
+                remedies = remedySection.Split(new[] { "\n", ",", ";" }, StringSplitOptions.RemoveEmptyEntries)
+                                        .Select(r => r.Trim())
+                                        .Where(r => r.Length > 2)
+                                        .ToList();
+            }
+            return (predictedCondition, remedies);
         }
     }
 }
