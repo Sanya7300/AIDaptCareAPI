@@ -28,5 +28,32 @@ namespace AIDaptCareAPI.Services
         {
             _symptoms.InsertOne(record);
         }
+        public async Task<List<SymptomRecord>> FindSimilarEmbeddingsAsync(List<float> inputEmbedding, int topN = 5)
+        {
+            var allRecords = await _symptoms.Find(_ => true).ToListAsync();
+            var recordsWithSimilarity = allRecords
+                .Where(r => r.Embedding != null && r.Embedding.Count == inputEmbedding.Count)
+                .Select(r => new
+                {
+                    Record = r,
+                    Similarity = CosineSimilarity(inputEmbedding, r.Embedding)
+                })
+                .OrderByDescending(x => x.Similarity)
+                .Take(topN)
+                .Select(x => x.Record)
+                .ToList();
+            return recordsWithSimilarity;
+        }
+        private float CosineSimilarity(List<float> a, List<float> b)
+        {
+            float dot = 0, normA = 0, normB = 0;
+            for (int i = 0; i < a.Count; i++)
+            {
+                dot += a[i] * b[i];
+                normA += a[i] * a[i];
+                normB += b[i] * b[i];
+            }
+            return (float)(dot / (System.Math.Sqrt(normA) * System.Math.Sqrt(normB) + 1e-10));
+        }
     }
 }

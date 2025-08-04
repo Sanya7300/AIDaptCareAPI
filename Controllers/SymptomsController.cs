@@ -2,6 +2,7 @@ using AIDaptCareAPI.Models;
 using AIDaptCareAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 namespace AIDaptCareAPI.Controllers
 {
     [Route("api/symptom")]
@@ -13,89 +14,91 @@ namespace AIDaptCareAPI.Controllers
         private readonly IAiPredictionService _aiPredictionService;
         private readonly IResearchDocumentService _researchDocumentService;
         private readonly IEmbeddingService _embeddingService;
+        private readonly MedicalReportService _medicalReportService;
 
         public SymptomController(
             SymptomService symptomService,
             IAiPredictionService aiPredictionService,
             IResearchDocumentService researchDocumentService,
-            IEmbeddingService embeddingService)
+            IEmbeddingService embeddingService,
+            MedicalReportService medicalReportService)
         {
             _symptomService = symptomService;
             _aiPredictionService = aiPredictionService;
             _researchDocumentService = researchDocumentService;
             _embeddingService = embeddingService;
+            _medicalReportService = medicalReportService;
         }
-
         [HttpPost("analyze")]
         public async Task<IActionResult> AnalyzeSymptoms([FromBody] SymptomInputModel input)
         {
             try
             {
-                if (input.Symptoms == null || !input.Symptoms.Any())
-                    return BadRequest("No symptoms provided.");
+                if ((input.Symptoms == null || !input.Symptoms.Any()) && string.IsNullOrWhiteSpace(input.ReportText))
+                    return BadRequest("No symptoms or medical report provided.");
 
-                // 1. Get medical history
                 var history = await _symptomService.GetHistoryAsync(input.Username);
-                string joinedSypmtoms = string.Join(", ", input.Symptoms);
-                var embedding = await _embeddingService.GetEmbeddingAsync( joinedSypmtoms);
 
-                // 2. Get relevant research documents
-                //var researchDocs = await _researchDocumentService.SearchByTagsAsync(input.Symptoms);
+                string reportText = string.Empty;
+                if (!string.IsNullOrWhiteSpace(input.Username))
+                {
+                    List<MedicalReport> report = await _medicalReportService.GetUserReportsAsync(input.Username);
+                    if (report != null && report.Any())
+                        reportText = report[0].ExtractedText;
+                }
 
-                // 3. Call RAG-enabled AI prediction service
-                var (predictedCondition, remedies) = await _aiPredictionService
-                    .PredictConditionAndRemediesAsync(input.Symptoms, history);
+                var combinedText = string.Join(", ", input.Symptoms ?? new List<string>()) + " " + (reportText ?? "");
+                var combinedEmbedding = await _embeddingService.GetEmbeddingAsync(combinedText);
+
+                var similarCases = await _symptomService.FindSimilarEmbeddingsAsync(combinedEmbedding, topN: 5);
+
+                var similarDocs = await _researchDocumentService.FindRelevantDocumentsAsync(combinedEmbedding, topN: 3);
+
+                var result = await _aiPredictionService.PredictComprehensiveMedicalInsightAsync(
+                    input.Symptoms,
+                    reportText,
+                    similarCases,
+                    similarDocs,
+                    history
+                );
 
                 var record = new SymptomRecord
                 {
                     Username = input.Username,
                     Symptoms = input.Symptoms,
-                    PredictedCondition = predictedCondition,
-                    Remedies = remedies,
-                    Timestamp = DateTime.UtcNow,
-                    Embedding = embedding
+                    ReportText = reportText,
+                    Condition = result.Condition,
+                    PredictedCondition = result.PredictedCondition,
+                    Diagnosis = result.Diagnosis,
+                    Treatment = result.Treatment,
+                    Remedies = result.Remedies,
+                    Medicines = result.Medicines,
+                    Embedding = combinedEmbedding,
+                    Timestamp = DateTime.UtcNow
                 };
                 _symptomService.Create(record);
-
-                return Ok(new
-                {
-                    condition = predictedCondition,
-                    remedies = remedies,
-                    history = history,
-                });
+                return Ok(result);
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
-
         [HttpGet("history/{username}")]
         public async Task<IActionResult> GetHistory(string username)
         {
             var records = await _symptomService.GetHistoryAsync(username);
             return Ok(records);
         }
-        private List<string> GetRemedies(string condition)
-        {
-            return condition.ToLower() switch
-            {
-                "diabetes" => new List<string> { "Eat a balanced diet", "Exercise regularly", "Monitor blood sugar" },
-                "hypertension" => new List<string> { "Reduce salt intake", "Regular physical activity", "Limit alcohol" },
-                "kidney disorder" => new List<string> { "Stay hydrated", "Limit protein intake", "Avoid NSAIDs" },
-                _ => new List<string> { "Please consult a medical professional" }
-            };
-        }
-
         [HttpPost("ask")]
         public async Task<IActionResult> AskAssistant([FromBody] AssistantInput input)
         {
             var prompt = $"""
-   The patient has these symptoms: {string.Join(", ", input.Symptoms)}.
-   Diagnosed condition: {input.Condition}.
-   Now they ask: "{input.Question}"
-   Please answer clearly and briefly like a virtual doctor.
-   """;
+           The patient has these symptoms: {string.Join(", ", input.Symptoms)}.
+           Diagnosed condition: {input.Condition}.
+           Now they ask: "{input.Question}"
+           Please answer clearly and briefly like a virtual doctor.
+           """;
             var response = await _aiPredictionService.GenerateAssistantResponseAsync(prompt);
             return Ok(new { reply = response });
         }
@@ -105,11 +108,11 @@ namespace AIDaptCareAPI.Controllers
             public string Condition { get; set; }
             public string Question { get; set; }
         }
-    }
-
-    public class SymptomInputModel
-    {
-        public string Username { get; set; }
-        public List<string> Symptoms { get; set; }
+        public class SymptomInputModel
+        {
+            public string Username { get; set; }
+            public List<string> Symptoms { get; set; }
+            public string ReportText { get; set; }
+        }
     }
 }

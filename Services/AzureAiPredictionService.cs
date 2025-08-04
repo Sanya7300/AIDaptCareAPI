@@ -1,192 +1,141 @@
-using System.Net.Http.Headers;
-using System.Text.Json;
-using AIDaptCareAPI.Services;
-using System.Text;
-using System.Net.Http;
+﻿using AIDaptCareAPI.Models;
 using Microsoft.Extensions.Configuration;
-using System.Linq;
+using System;
 using System.Collections.Generic;
-using AIDaptCareAPI.Models;
-using Newtonsoft.Json;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Globalization;
 
 namespace AIDaptCareAPI.Services
 {
     public class AzureAiPredictionService : IAiPredictionService
     {
         private readonly HttpClient _httpClient;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
-        public AzureAiPredictionService(HttpClient httpClient, IConfiguration configuration, IHttpClientFactory _httpClientFactory)
+        private readonly string _endpoint;
+        private readonly string _deployment;
+        private readonly string _apiKey;
+        public AzureAiPredictionService(IConfiguration config)
         {
-            _httpClient = httpClient;
-            _configuration = configuration;
-            _httpClientFactory = _httpClientFactory;
+            _httpClient = new HttpClient();
+            _endpoint = config["AzureAI:Endpoint"];
+            _deployment = config["AzureAI:Deployment"];
+            _apiKey = config["AzureAI:ApiKey"];
         }
-
         public async Task<string> GenerateAssistantResponseAsync(string prompt)
         {
-            var endpointBase = _configuration["AzureAI:Endpoint"];
-            var deploymentName = _configuration["AzureAI:Deployment"];
-            var apiKey = _configuration["AzureAI:ApiKey"];
-            var requestUrl = $"{endpointBase}/openai/deployments/{deploymentName}/chat/completions?api-version=2023-05-15";
+            var url = $"{_endpoint}/openai/deployments/{_deployment}/chat/completions?api-version=2023-05-15";
             var requestBody = new
             {
                 messages = new[]
                 {
-           new { role = "system", content = "You are a friendly medical AI assistant." },
-           new { role = "user", content = prompt }
-       },
-                temperature = 0.7,
-                max_tokens = 300
+                   new { role = "system", content = "You are a helpful medical assistant." },
+                   new { role = "user", content = prompt }
+               },
+                temperature = 0.4,
+                max_tokens = 1024
             };
-
-            var requestJson = JsonConvert.SerializeObject(requestBody);
-            var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
-            {
-                Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
-            };
-            request.Headers.Add("api-key", apiKey);
+            var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Add("api-key", _apiKey);
+            request.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
             var response = await _httpClient.SendAsync(request);
             response.EnsureSuccessStatusCode();
-
-            var jsonDoc = await response.Content.ReadAsStringAsync();
-            var parsed = JsonDocument.Parse(jsonDoc);
-            var result = parsed.RootElement
-                              .GetProperty("choices")[0]
-                              .GetProperty("message")
-                              .GetProperty("content")
-                              .GetString();
-            return result ?? "Sorry, I couldn�t understand that.";
-        }
-
-        public async Task<string> GenerateDiagnosisFromDocumentAsync(string extractedText)
-        {
-            var endpointBase = _configuration["AzureAI:Endpoint"];
-            var deploymentId = _configuration["AzureAI:Deployment"];
-            var apiKey = _configuration["AzureAI:ApiKey"];
-            //var client = _httpClientFactory.CreateClient();
-            var requestUrl = $"{endpointBase}/openai/deployments/{deploymentId}/chat/completions?api-version=2023-05-15";
-
-            var prompt = $@"
-You are a licensed digital healthcare assistant. Review the medical report content below and return:
-- Probable diagnosis
-- Possible conditions detected
-- Recommended treatment options or remedies
-- Urgency level (critical/moderate/low)
-Medical Report Content:
-{extractedText}";
-            var requestBody = new
-            {
-                messages = new[]
-                {
-           new { role = "system", content = "You are an expert medical assistant helping patients and doctors." },
-           new { role = "user", content = prompt }
-       },
-                temperature = 0.3,
-                max_tokens = 800
-            };
-            var requestJson = JsonConvert.SerializeObject(requestBody);
-            var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
-            {
-                Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
-            };
-            request.Headers.Add("api-key", apiKey);
-            var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            var responseContent = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
-                throw new Exception($"Azure OpenAI error: {responseContent}");
-            dynamic jsonResponse = JsonConvert.DeserializeObject(responseContent);
-            return jsonResponse.choices[0].message.content;
-            //var doc = JsonDocument.Parse(responseContent);
-            //var content = doc.RootElement
-            //    .GetProperty("choices")[0]
-            //    .GetProperty("message")
-            //    .GetProperty("content")
-            //    .GetString();
-            //var json = JsonConvert.SerializeObject(requestBody);
-            //var content = new StringContent(json, Encoding.UTF8, "application/json");
-            //var response = await client.PostAsync("", content);
-            //var responseContent = await response.Content.ReadAsStringAsync();
-            //if (!response.IsSuccessStatusCode)
-            //    throw new Exception($"Azure OpenAI error: {responseContent}");
-            //dynamic jsonResponse = JsonConvert.DeserializeObject(responseContent);
-            //return jsonResponse.choices[0].message.content;
-        }
-
-        public async Task<(string Condition, List<string> Remedies)> PredictConditionAndRemediesAsync(
-            List<string> symptoms, List<SymptomRecord> history)
-        {
-            var endpointBase = _configuration["AzureAI:Endpoint"];
-            var deploymentName = _configuration["AzureAI:Deployment"];
-            var apiKey = _configuration["AzureAI:ApiKey"];
-            var requestUrl = $"{endpointBase}/openai/deployments/{deploymentName}/chat/completions?api-version=2023-05-15";
-
-    //        // Format history
-    //        var historyText = history != null && history.Any()
-    //            ? string.Join("\n", history.Select(h =>
-    //                $"- Date: {h.Timestamp:yyyy-MM-dd}, Symptoms: {string.Join(", ", h.Symptoms)}, Condition: {h.PredictedCondition}"))
-    //            : "No prior medical history.";
-
-    //        // Format research docs (use hyperlink if available, else content)
-    //        var researchText = researchDocs != null && researchDocs.Any()
-    //            ? string.Join("\n", researchDocs.Select(d =>
-    //                $"- {d.Title}: {(d.GetType().GetProperty("Content") != null ? d.GetType()?.GetProperty("Content")?.GetValue(d) : d.Content)}"))
-    //            : "No relevant research documents found.";
-
-    //        var prompt = $@"
-    //Given the following:
-    //Symptoms: {string.Join(", ", symptoms)}
-    //Medical History:
-    //{historyText}
-
-    //Relevant Research:
-    //{researchText}
-
-    //        //    Based on the above, respond with a JSON containing the predicted chronic condition and 3 home remedies.
-    //        //Respond strictly in this JSON format:
-    //        //{{
-    //        // ""condition"": ""<ConditionName>"",
-    //        // ""remedies"": [""Remedy1"", ""Remedy2"", ""Remedy3""]
-    //        //}}";
-           
-            var prompt = $@"
-Given the following symptoms: {string.Join(", ", symptoms)},
-respond with a JSON containing the predicted chronic condition and 3 home remedies.
-    Respond strictly in this JSON format:
-    {{
-      ""condition"": ""<ConditionName>"",
-      ""remedies"": [""Remedy1"", ""Remedy2"", ""Remedy3""]
-    }}";
-
-            var requestBody = new
-            {
-                messages = new[]
-                {
-                        new { role = "user", content = prompt }
-                    },
-                max_tokens = 500,
-            };
-            var requestJson = JsonConvert.SerializeObject(requestBody);
-            var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
-            {
-                Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
-            };
-            request.Headers.Add("api-key", apiKey);
-            var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var doc = JsonDocument.Parse(responseContent);
-            var content = doc.RootElement
+            var resultJson = await response.Content.ReadAsStringAsync();
+            var root = JsonDocument.Parse(resultJson).RootElement;
+            return root
                 .GetProperty("choices")[0]
                 .GetProperty("message")
                 .GetProperty("content")
                 .GetString();
-            var parsed = JsonDocument.Parse(content!);
-            var condition = parsed.RootElement.GetProperty("condition").GetString();
-            var remediesJson = parsed.RootElement.GetProperty("remedies").EnumerateArray();
-            var remedies = remediesJson.Select(r => r.GetString()).Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
-            return (condition ?? "Unknown", remedies);
+        }
+        public async Task<ComprehensivePredictionResult> PredictComprehensiveMedicalInsightAsync(
+            List<string> symptoms,
+            string reportText,
+            List<SymptomRecord> similarCases,
+            List<ResearchDocument> researchDocs,
+            List<SymptomRecord> history)
+        {
+            var prompt = new StringBuilder();
+            prompt.AppendLine($"Patient symptoms: {string.Join(", ", symptoms ?? new List<string>())}");
+            if (!string.IsNullOrWhiteSpace(reportText))
+                prompt.AppendLine($"Extracted from medical report: {reportText}");
+            if (similarCases.Any())
+            {
+                prompt.AppendLine("\nSimilar past cases:");
+                foreach (var item in similarCases)
+                {
+                    prompt.AppendLine($"- Symptoms: {string.Join(", ", item.Symptoms)} → Condition: {item.PredictedCondition}");
+                }
+            }
+            if (researchDocs.Any())
+            {
+                prompt.AppendLine("\nRelevant research findings:");
+                foreach (var doc in researchDocs)
+                {
+                    prompt.AppendLine($"- {doc.Title}: {doc.Summary} (link: {doc.Url})");
+                }
+            }
+            prompt.AppendLine("\nBased on all of the above, predict and explain:");
+            prompt.AppendLine("1. Likely medical condition");
+            prompt.AppendLine("2. Diagnosis summary");
+            prompt.AppendLine("3. Recommended treatment");
+            prompt.AppendLine("4. Suggested medicines");
+            prompt.AppendLine("5. Home remedies");
+            prompt.AppendLine("6. Recommended diagnostic tests");
+            var response = await GenerateAssistantResponseAsync(prompt.ToString());
+            return new ComprehensivePredictionResult
+            {
+                Condition = ExtractSection(response, "Likely Medical Condition"),
+                PredictedCondition = ExtractOneWordCondition(response),
+                Diagnosis = ExtractSection(response, "Diagnosis Summary"),
+                Treatment = ExtractSection(response, "Recommended Treatment"),
+                Medicines = ExtractList(response, "Suggested Medicines"),
+                Remedies = ExtractList(response, "Home Remedies"),
+                RecommendedTests = ExtractList(response, "Recommended diagnostic tests"),
+                ResearchLinks = researchDocs.Select(d => d.Url).ToList(),
+                History = history
+            };
+        }
+        private string ExtractSection(string text, string sectionTitle)
+        {
+            var lines = text.Split('\n');
+            var sectionHeader = lines.FirstOrDefault(line =>
+                line.Trim().ToLower().Contains(sectionTitle.ToLower()));
+            if (sectionHeader == null) return "Not specified";
+            int index = Array.IndexOf(lines, sectionHeader);
+            var sb = new StringBuilder();
+            for (int i = index + 1; i < lines.Length; i++)
+            {
+                if (lines[i].StartsWith("1.") || lines[i].StartsWith("2.") || lines[i].StartsWith("3.") ||
+                    lines[i].StartsWith("4.") || lines[i].StartsWith("5."))
+                    break;
+                sb.AppendLine(lines[i].Trim());
+            }
+            return sb.ToString().Trim();
+        }
+        private List<string> ExtractList(string text, string sectionTitle)
+        {
+            var section = ExtractSection(text, sectionTitle);
+            if (string.IsNullOrEmpty(section)) return new List<string>();
+            return section.Split(new[] { '\n', '-', '*' }, StringSplitOptions.RemoveEmptyEntries)
+                          .Select(s => s.Trim())
+                          .Where(s => s.Length > 2)
+                          .ToList();
+        }
+
+        private string ExtractOneWordCondition(string text)
+        {
+            var section = ExtractSection(text, "Likely Medical Condition");
+            var knownConditions = new[] { "diabetes", "hypertension", "kidney disease", "thyroid", "asthma", "anemia", "infection", "obesity" };
+            foreach (var condition in knownConditions)
+            {
+                if (section.ToLower().Contains(condition))
+                    return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(condition);
+            }
+            var words = section.Split(new[] { ' ', '.', ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            return words.Length > 0 ? words[0] : "Unknown";
         }
     }
 }
