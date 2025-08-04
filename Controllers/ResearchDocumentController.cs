@@ -1,38 +1,42 @@
-using Microsoft.AspNetCore.Mvc;
+using AIDaptCareAPI.Models;
 using AIDaptCareAPI.Services;
-using System.Security.Claims;
-
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 namespace AIDaptCareAPI.Controllers
 {
-	[ApiController]
-	[Route("api/researchdocument")]
-	public class ResearchDocumentController : ControllerBase
-	{
-		private readonly IResearchDocumentService _documentService;
-		public ResearchDocumentController(IResearchDocumentService documentService)
-		{
-			_documentService = documentService;
-		}
-		[HttpPost("upload")]
-		public async Task<IActionResult> Upload(IFormFile file)
-		{
-			try
-			{
-				var userId = User.FindFirst(ClaimTypes.Name)?.Value;
-				var report = await _documentService.UploadAnalyzeAndSaveAsync(file, userId);
-				return Ok(new
-				{
-					reportId = report.Id,
-					fileName = report.FileName,
-					extractedText = report.ExtractedText,
-					diagnosis = report.Diagnosis,
-					uploadedAt = report.UploadedAt
-				});
-			}
-			catch (Exception ex)
-			{
-				return BadRequest(new { error = ex.Message });
-			}
-		}
-	}
+    [Route("api/research")]
+    [ApiController]
+    [Authorize]
+    public class ResearchDocumentController : ControllerBase
+    {
+        private readonly IResearchDocumentService _researchDocumentService;
+        private readonly IEmbeddingService _embeddingService;
+        public ResearchDocumentController(
+            IResearchDocumentService researchDocumentService,
+            IEmbeddingService embeddingService)
+        {
+            _embeddingService = embeddingService;
+            _researchDocumentService = researchDocumentService;
+        }
+        [HttpGet]
+        public async Task<ActionResult<List<ResearchDocument>>> GetAll()
+        {
+            var documents = await _researchDocumentService.GetAllDocumentsAsync();
+            return Ok(documents);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadDocument([FromBody] ResearchDocument document)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            document.Embedding = await _embeddingService.GetEmbeddingAsync(document.Content);
+            await _researchDocumentService.CreateDocumentAsync(document);
+            return Ok(new { message = "Research document uploaded successfully." });
+        }
+    }
 }

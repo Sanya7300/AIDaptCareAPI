@@ -13,8 +13,9 @@ builder.Services.Configure<DatabaseSettings>(
 builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<AuthService>();
 builder.Services.AddSingleton<SymptomService>();
+builder.Services.AddSingleton<MedicalReportService>();
 builder.Services.AddScoped<IResearchDocumentService, ResearchDocumentService>();
-builder.Services.AddHttpClient<IAiPredictionService, AzureAiPredictionService>();
+builder.Services.AddScoped<IAiPredictionService, AzureAiPredictionService>();
 builder.Services.AddScoped<IAzureFormRecognizerService, AzureFormRecognizerService>();
 builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
 builder.Services.AddSingleton<MongoService>();

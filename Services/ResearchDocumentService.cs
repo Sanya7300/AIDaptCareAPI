@@ -1,56 +1,59 @@
 using AIDaptCareAPI.Models;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 
 namespace AIDaptCareAPI.Services
 {
-    //public class ResearchDocumentService
-    //{
-    //    private readonly IMongoCollection<ResearchDocument> _documents;
-    //    public ResearchDocumentService(IOptions<DatabaseSettings> dbSettings)
-    //    {
-    //        var client = new MongoClient(dbSettings.Value.ConnectionString);
-    //        var database = client.GetDatabase(dbSettings.Value.DatabaseName);
-    //        _documents = database.GetCollection<ResearchDocument>(dbSettings.Value.ResearchCollectionName);
-    //    }
-
-    //    public async Task<List<ResearchDocument>> SearchByTagsAsync(List<string> tags)
-    //    {
-    //        return await _documents.Find(d => d.Tags.Any(tag => tags.Contains(tag))).ToListAsync();
-    //    }
-    //}
     public class ResearchDocumentService : IResearchDocumentService
     {
-        private readonly IAzureFormRecognizerService _recognizerService;
-        private readonly IAiPredictionService _aiPredictionService;
-        private readonly MongoService _mongoService;
-        public ResearchDocumentService(
-           IAzureFormRecognizerService recognizerService,
-           IAiPredictionService aiPredictionService,
-           MongoService mongoService)
+        private readonly IMongoCollection<ResearchDocument> _researchDocumentCollection;
+        public ResearchDocumentService(IConfiguration config, IOptions<DatabaseSettings> dbSettings)
         {
-            _recognizerService = recognizerService;
-            _aiPredictionService = aiPredictionService;
-            _mongoService = mongoService;
+            var client = new MongoClient(dbSettings.Value.ConnectionString);
+            var database = client.GetDatabase(dbSettings.Value.DatabaseName);
+            _researchDocumentCollection = database.GetCollection<ResearchDocument>(dbSettings.Value.ResearchCollectionName);
         }
-        public async Task<MedicalReport> UploadAnalyzeAndSaveAsync(IFormFile file, string userId = null)
+        public async Task<List<ResearchDocument>> GetAllDocumentsAsync()
         {
-            if (file == null || file.Length == 0)
-                throw new ArgumentException("Invalid file");
-            using var stream = file.OpenReadStream();
-            var text = await _recognizerService.ExtractTextAsync(stream);
-            var diagnosis = await _aiPredictionService.GenerateDiagnosisFromDocumentAsync(text);
-            var report = new MedicalReport
+            return await _researchDocumentCollection.Find(_ => true).ToListAsync();
+        }
+
+        public async Task CreateDocumentAsync(ResearchDocument document)
+        {
+            await _researchDocumentCollection.InsertOneAsync(document);
+        }
+        public async Task<List<ResearchDocument>> FindRelevantDocumentsAsync(List<float> embedding, int topN = 3)
+        {
+            var allDocs = await _researchDocumentCollection.Find(_ => true).ToListAsync();
+            var matches = allDocs
+                .Where(d => d.Embedding != null && d.Embedding.Count == embedding.Count)
+                .Select(d => new
+                {
+                    Doc = d,
+                    Score = CosineSimilarity(embedding, d.Embedding)
+                })
+                .OrderByDescending(x => x.Score)
+                .Take(topN)
+                .Select(x => x.Doc)
+                .ToList();
+            return matches;
+        }
+        private float CosineSimilarity(List<float> a, List<float> b)
+        {
+            float dot = 0, normA = 0, normB = 0;
+            for (int i = 0; i < a.Count; i++)
             {
-                FileName = file.FileName,
-                ExtractedText = text,
-                Diagnosis = diagnosis,
-                UserId = userId
-            };
-            await _mongoService.InsertAsync("MedicalReports", report);
-            return report;
+                dot += a[i] * b[i];
+                normA += a[i] * a[i];
+                normB += b[i] * b[i];
+            }
+            return (float)(dot / (Math.Sqrt(normA) * Math.Sqrt(normB) + 1e-10));
         }
     }
 }
