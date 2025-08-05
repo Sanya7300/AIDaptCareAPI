@@ -78,22 +78,39 @@ namespace AIDaptCareAPI.Services
                 }
             }
             prompt.AppendLine("\nBased on all of the above, predict and explain:");
-            prompt.AppendLine("1. Likely medical condition");
-            prompt.AppendLine("2. Diagnosis summary");
-            prompt.AppendLine("3. Recommended treatment");
-            prompt.AppendLine("4. Suggested medicines");
-            prompt.AppendLine("5. Home remedies");
-            prompt.AppendLine("6. Recommended diagnostic tests");
+            prompt.AppendLine("1. In the 'PredictedDiagnosisDisease' field, provide the specific disease name in ONE WORD only (e.g., 'Diabetes', 'Asthma', 'Hypertension').");
+            prompt.AppendLine("2. In the 'SuggestedMedicines' field, provide only medicine names as a list of ONE WORD each (e.g., 'Paracetamol', 'Ibuprofen', 'Metformin'). Do not include explanations or full sentences.");
+
+            prompt.AppendLine("3. Strictly give JSON format which can be deserialized.");
+            prompt.AppendLine("4. Respond with only valid JSON output — no markdown, no code block, no explanations, no surrounding text.");
+            prompt.AppendLine("5. Use standard double quotes (\") for all keys and values. Ensure output is valid JSON that can be pasted directly into a JSON visualizer.");
+            prompt.AppendLine(@"
+            Respond ONLY in the following JSON object format, where each property is an array of strings with detailed points for each  section:
+            {
+                ""ComprehensivePredictionResult"": {
+                ""LikelyMedicalCondition"": [""..."", ""...""],
+                ""DiagnosisSummary"": [""..."", ""...""],
+                ""RecommendedTreatment"": [""..."", ""...""],
+                ""SuggestedMedicines"": [""..."", ""...""],
+                ""HomeRemedies"": [""..."", ""...""],
+                ""RecommendedDiagnosticTests"": [""..."", ""...""],
+                ""PredictedDiagnosisDisease"": ""
+                 }
+             }
+            ");
             var response = await GenerateAssistantResponseAsync(prompt.ToString());
+            using var resp = JsonDocument.Parse(response);
+            var root = resp.RootElement.GetProperty("ComprehensivePredictionResult");
+
             return new ComprehensivePredictionResult
             {
-                Condition = ExtractSection(response, "Likely Medical Condition"),
-                PredictedCondition = ExtractOneWordCondition(response),
-                Diagnosis = ExtractSection(response, "Diagnosis Summary"),
-                Treatment = ExtractSection(response, "Recommended Treatment"),
-                Medicines = ExtractList(response, "Suggested Medicines"),
-                Remedies = ExtractList(response, "Home Remedies"),
-                RecommendedTests = ExtractList(response, "Recommended diagnostic tests"),
+                Condition = root.GetProperty("LikelyMedicalCondition").EnumerateArray().Select(x => x.GetString()).ToList(),
+                Diagnosis = root.GetProperty("DiagnosisSummary").EnumerateArray().Select(x => x.GetString()).ToList(),
+                Treatment = root.GetProperty("RecommendedTreatment").EnumerateArray().Select(x => x.GetString()).ToList(),
+                Medicines = root.GetProperty("SuggestedMedicines").EnumerateArray().Select(x => x.GetString()).ToList(),
+                Remedies = root.GetProperty("HomeRemedies").EnumerateArray().Select(x => x.GetString()).ToList(),
+                RecommendedTests = root.GetProperty("RecommendedDiagnosticTests").EnumerateArray().Select(x => x.GetString()).ToList(),
+                PredictedCondition = root.GetProperty("PredictedDiagnosisDisease").GetString(),
                 ResearchLinks = researchDocs.Select(d => d.Url).ToList(),
                 History = history
             };

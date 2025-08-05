@@ -15,13 +15,13 @@ namespace AIDaptCareAPI.Models
         [BsonElement("reportText")]
         public string ReportText { get; set; }
         [BsonElement("condition")]
-        public string Condition { get; set; }
+        public List<string> Condition { get; set; }
         [BsonElement("predictedCondition")]
         public string PredictedCondition { get; set; }
         [BsonElement("diagnosis")]
-        public string Diagnosis { get; set; }
+        public List<string> Diagnosis { get; set; }
         [BsonElement("treatment")]
-        public string Treatment { get; set; }
+        public List<string> Treatment { get; set; }
         [BsonElement("medicines")]
         public List<string> Medicines { get; set; }
         [BsonElement("remedies")]
